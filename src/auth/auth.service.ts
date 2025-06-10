@@ -58,4 +58,12 @@ export class AuthService {
       createdAt: user.createdAt,
     };
   }
+
+  async me() {
+    return this.prisma.user.findUnique({
+      where: {
+        id: 1,
+      },
+    });
+  }
 }
