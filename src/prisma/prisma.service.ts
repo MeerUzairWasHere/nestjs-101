@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaClient } from 'generated/prisma';
+import { PrismaClient } from 'generated';
 
 @Injectable()
 export class PrismaService extends PrismaClient {
-  constructor(private config: ConfigService) {
+  constructor(config: ConfigService) {
     super({
       datasources: {
         db: {
