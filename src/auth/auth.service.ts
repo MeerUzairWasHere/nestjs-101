@@ -7,12 +7,16 @@ import {
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UserService } from 'src/user/user.service';
 import { loginDto, registerDto } from './dto';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
     private userService: UserService,
+    private jwtService: JwtService,
+    private config: ConfigService,
   ) {}
 
   async register(body: registerDto) {
@@ -37,7 +41,7 @@ export class AuthService {
       },
     });
 
-    return user;
+    return this.signToken({ userId: user.id, email: user.email });
   }
 
   async login(body: loginDto) {
@@ -52,10 +56,22 @@ export class AuthService {
       throw new NotFoundException('Invalid credentials');
     }
 
-    return {
-      id: user.id,
-      email: user.email,
-      createdAt: user.createdAt,
-    };
+    return this.signToken({ userId: user.id, email: user.email });
+  }
+
+  signToken({
+    userId,
+    email,
+  }: {
+    userId: string;
+    email: string;
+  }): Promise<string> {
+    return this.jwtService.signAsync(
+      { userId, email },
+      {
+        expiresIn: '15m',
+        secret: this.config.get('JWT_SECRET'),
+      },
+    );
   }
 }
