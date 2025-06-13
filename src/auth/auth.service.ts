@@ -1,14 +1,17 @@
 import * as argon2 from 'argon2';
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
-  NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UserService } from 'src/user/user.service';
 import { loginDto, registerDto } from './dto';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { randomBytes } from 'crypto';
+import { Request } from 'express';
 
 @Injectable()
 export class AuthService {
@@ -44,19 +47,83 @@ export class AuthService {
     return this.signToken({ userId: user.id, email: user.email });
   }
 
-  async login(body: loginDto) {
-    const user = await this.userService.getUserByEmail(body.email);
+  // async login(body: loginDto) {
+  //   const user = await this.userService.getUserByEmail(body.email);
 
+  //   if (!user) {
+  //     throw new NotFoundException('Invalid credentials');
+  //   }
+  //   const isPasswordCorrect = await argon2.verify(user.password, body.password);
+
+  //   if (!isPasswordCorrect) {
+  //     throw new NotFoundException('Invalid credentials');
+  //   }
+
+  //   return this.signToken({ userId: user.id, email: user.email });
+  // }
+
+  async login(body: loginDto, req: Request, res: Response) {
+    const { email, password } = body;
+
+    // Step 1: Find user by email
+    const user = await this.userService.getUserByEmail(email);
     if (!user) {
-      throw new NotFoundException('Invalid credentials');
+      throw new UnauthorizedException('Invalid Credentials');
     }
-    const isPasswordCorrect = await argon2.verify(user.password, body.password);
 
+    // Step 2: Compare passwords
+    const isPasswordCorrect = await argon2.verify(user.password, password);
     if (!isPasswordCorrect) {
-      throw new NotFoundException('Invalid credentials');
+      throw new UnauthorizedException('Invalid Credentials');
     }
 
-    return this.signToken({ userId: user.id, email: user.email });
+    // Step 3: Verify user's email status
+    if (!user.isVerified) {
+      throw new UnauthorizedException('Please verify your email');
+    }
+
+    // Step 4: Create token payload for the user
+    const tokenUser = { userId: user.id, email: user.email };
+
+    // Step 5: Check for existing token or create a new one
+    let refreshToken: string;
+    const existingToken = await this.prisma.token.findFirst({
+      where: {
+        userId: user.id,
+      },
+    });
+
+    // if (existingToken) {
+    //   if (!existingToken.isValid) {
+    //     throw new UnauthorizedException('Invalid Credentials');
+    //   }
+    //   refreshToken = existingToken.refreshToken;
+    // } else {
+    //   refreshToken = randomBytes(40).toString('hex');
+
+    //   const userAgent = req.headers['user-agent'] || 'unknown';
+    //   const ip = req.ip;
+    //   if (!ip) {
+    //     throw new BadRequestException('IP address is required');
+    //   }
+    //   await this.tokenService.createToken({
+    //     refreshToken,
+    //     ip,
+    //     userAgent,
+    //     userId: user.id,
+    //   });
+    // }
+
+    // Step 6: Attach cookies and respond
+    // attachCookiesToResponse({ res, user: tokenUser, refreshToken });
+
+    // Also return the signed JWT in the response
+    const accessToken = await this.signToken(tokenUser);
+
+    return {
+      user: tokenUser,
+      accessToken,
+    };
   }
 
   signToken({
