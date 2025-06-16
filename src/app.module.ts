@@ -6,6 +6,8 @@ import { UserModule } from './user/user.module';
 import { PrismaService } from './prisma/prisma.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { BookmarkModule } from './bookmark/bookmark.module';
+import { TokenService } from './token/token.service';
+import { TokenModule } from './token/token.module';
 
 @Module({
   imports: [
@@ -16,7 +18,8 @@ import { BookmarkModule } from './bookmark/bookmark.module';
     UserModule,
     PrismaModule,
     BookmarkModule,
+    TokenModule,
   ],
-  providers: [PrismaService],
+  providers: [PrismaService, TokenService],
 })
 export class AppModule {}
